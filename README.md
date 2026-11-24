@@ -6,9 +6,9 @@ Site experimental para transferir arquivos entre iPhone, Android e computador us
 
 1. Abra **Settings** neste repositório.
 2. Entre em **Pages**.
-3. Em **Build and deployment**, escolha **Deploy from a branch**.
-4. Selecione a branch **main** e a pasta **/(root)** e salve.
-5. Aguarde o GitHub publicar. O endereço será https://desassocia.github.io/crossdrop/.
+3. Em **Build and deployment**, escolha **GitHub Actions** como fonte.
+4. Salve. A automação deste repositório fará o deploy a cada atualização na branch main.
+5. Aguarde a execução do workflow **Deploy CrossDrop to GitHub Pages**. O endereço será https://desassocia.github.io/crossdrop/.
 
 ## Como usar
 
