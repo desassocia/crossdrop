@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b09"><meta name="description" content="Envie arquivos entre iPhone, Android e computador.">
+<title>CrossDrop — Envie sem complicação</title>
+<style>
+:root{color-scheme:dark;--bg:#080b09;--panel:#111713;--line:#26352b;--green:#9cff57;--muted:#9aab9e}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -15%,#18321d 0,transparent 48%),var(--bg);color:#f3f8f3;font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{width:min(760px,100%);margin:auto;padding:30px 18px 60px}.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.3px;font-size:21px}.logo{width:38px;height:38px;border-radius:12px;background:var(--green);color:#10170d;display:grid;place-items:center;font-size:22px}
+h1{font-size:clamp(32px,7vw,48px);line-height:1.06;margin:44px 0 12px;letter-spacing:-1.8px}h1 span{color:var(--green)}.sub{color:var(--muted);line-height:1.6;margin:0 0 28px}
+.card{background:linear-gradient(145deg,#141d16,#0e130f);border:1px solid var(--line);border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 15px 45px #0003}
+.tabs{display:flex;gap:8px;margin-bottom:18px}.tab,button{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:#18221a;color:#eaf4e9;font:600 15px system-ui;cursor:pointer}.tab.active,button.primary{background:var(--green);border-color:var(--green);color:#10170d}.tab{flex:1}
+label{display:block;font-size:14px;color:var(--muted);margin:15px 0 7px}input[type=text]{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:#080d09;color:white;font-size:17px;letter-spacing:1px}
+button{width:100%;margin-top:12px}button:disabled{opacity:.45;cursor:not-allowed}
+.drop{border:1.5px dashed #47634a;border-radius:17px;padding:28px 15px;text-align:center;background:#0b120d}.drop strong{display:block;margin:8px 0}.drop p,.hint{color:var(--muted);font-size:13px;line-height:1.5}
+input[type=file]{display:none}.filebtn{display:inline-block;background:#1b2b1c;color:var(--green);padding:11px 16px;border-radius:11px;font-weight:700;cursor:pointer}
+.status{margin-top:14px;padding:12px;border-radius:12px;background:#0b120d;color:var(--muted);font-size:14px;overflow-wrap:anywhere}.status.ok{color:var(--green)}.hidden{display:none!important}
+.progress{height:8px;background:#26352b;border-radius:20px;overflow:hidden;margin-top:12px}.progress i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+footer{text-align:center;color:#718276;font-size:12px;margin-top:28px}a{color:var(--green)}
+</style>
+</head>
+<body><main>
+<div class="brand"><div class="logo">↗</div>CrossDrop</div>
+<h1>Seus arquivos.<br><span>Sem complicação.</span></h1>
+<p class="sub">Envie fotos, vídeos e documentos entre iPhone, Android e computador. Sem cadastro e sem guardar seus arquivos em um servidor.</p>
+<section class="card">
+<div class="tabs"><button class="tab active" id="sendTab">Enviar</button><button class="tab" id="receiveTab">Receber</button></div>
+<div id="sendPanel">
+<p class="hint">1. Escolha os arquivos. 2. Compartilhe seu código com o outro aparelho. 3. Aguarde a conexão.</p>
+<div class="drop"><div style="font-size:30px">📁</div><strong>Escolha o que deseja enviar</strong><p>Os arquivos são enviados diretamente entre os aparelhos quando conectados.</p><label class="filebtn" for="files">Selecionar arquivos</label><input id="files" type="file" multiple></div>
+<div id="selected" class="status">Nenhum arquivo selecionado.</div>
+<button class="primary" id="start" disabled>Gerar código de conexão</button>
+<div id="myCodeBox" class="hidden"><label>Seu código — envie para quem vai receber</label><input id="myCode" type="text" readonly><button id="copy" type="button">Copiar código</button></div>
+</div>
+<div id="receivePanel" class="hidden">
+<p class="hint">Peça o código de 6 caracteres para quem está enviando e digite abaixo.</p>
+<label for="remoteCode">Código de quem está enviando</label><input id="remoteCode" type="text" maxlength="6" placeholder="Ex.: A7K9Q2" autocapitalize="characters">
+<button class="primary" id="connect">Conectar e receber</button>
+<div id="incoming" class="status">Os arquivos recebidos serão salvos no seu aparelho.</div>
+</div>
+<div id="status" class="status" aria-live="polite">Pronto para começar.</div><div class="progress"><i id="bar"></i></div>
+</section>
+<p class="hint">Dica: mantenha esta página aberta nos dois aparelhos durante a transferência. Para arquivos grandes, use uma conexão Wi‑Fi estável.</p>
+<footer>CrossDrop • Transferência direta • Seus arquivos não ficam armazenados aqui</footer>
+</main>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);let peer=null,conn=null,files=[],incomingMeta=null,chunks=[],received=0,total=0;
+function status(t,ok=false){$('status').textContent=t;$('status').className='status'+(ok?' ok':'')}
+function switchTo(which){const send=which==='send';$('sendPanel').classList.toggle('hidden',!send);$('receivePanel').classList.toggle('hidden',send);$('sendTab').classList.toggle('active',send);$('receiveTab').classList.toggle('active',!send)}
+$('sendTab').onclick=()=>switchTo('send');$('receiveTab').onclick=()=>switchTo('receive');
+$('files').onchange=e=>{files=[...e.target.files];$('selected').textContent=files.length?files.map(f=>f.name+' ('+(f.size/1048576).toFixed(2)+' MB)').join(' • '):'Nenhum arquivo selecionado.';$('start').disabled=!files.length};
+function makeCode(){return Math.random().toString(36).slice(2,8).toUpperCase()}
+$('start').onclick=()=>{
+ if(!window.Peer){status('Não foi possível carregar o serviço de conexão. Verifique a internet.');return}
+ $('start').disabled=true;status('Criando conexão segura…');
+ const id='crossdrop-'+makeCode().toLowerCase();peer=new Peer(id);
+ peer.on('open',()=>{$('myCode').value=id.replace('crossdrop-','').toUpperCase();$('myCodeBox').classList.remove('hidden');status('Código criado! Envie-o para o outro aparelho.',true)});
+ peer.on('connection',c=>{conn=c;status('Outro aparelho conectado! Preparando envio…',true);wireSender()});
+ peer.on('error',err=>{status('Erro na conexão: '+err.type);$('start').disabled=false});
+};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('myCode').value);status('Código copiado!',true)}catch{status('Copie o código manualmente.')}};
+$('connect').onclick=()=>{
+ const code=$('remoteCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(code)){status('Digite um código válido de 6 caracteres.');return}
+ if(!window.Peer){status('Não foi possível carregar o serviço de conexão.');return}
+ status('Conectando…');peer=new Peer();
+ peer.on('open',()=>{conn=peer.connect('crossdrop-'+code.toLowerCase(),{reliable:true});conn.on('open',()=>{status('Conectado! Aguardando arquivos…',true);wireReceiver()});conn.on('error',()=>status('Falha ao conectar. Confira o código e tente novamente.'))});
+ peer.on('error',err=>status('Erro: '+err.type));
+};
+function wireSender(){conn.on('open',async()=>{for(const f of files){conn.send({kind:'meta',name:f.name,size:f.size,type:f.type||'application/octet-stream'});const chunkSize=48*1024;for(let offset=0;offset<f.size;offset+=chunkSize){const buf=await f.slice(offset,offset+chunkSize).arrayBuffer();while(conn.dataChannel&&conn.dataChannel.bufferedAmount>1024*1024)await new Promise(r=>setTimeout(r,40));conn.send(buf);status('Enviando '+f.name+'…');$('bar').style.width=Math.min(100,((offset+buf.byteLength)/f.size)*100)+'%'}conn.send({kind:'end'});}status('Envio concluído!',true);$('bar').style.width='100%'});}
+function wireReceiver(){conn.on('data',data=>{if(data&&data.kind==='meta'){incomingMeta=data;chunks=[];received=0;total=data.size;$('incoming').textContent='Recebendo: '+data.name;status('Recebendo '+data.name+'…');return}if(data&&data.kind==='end'&&incomingMeta){const blob=new Blob(chunks,{type:incomingMeta.type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=incomingMeta.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);status('Arquivo recebido: '+incomingMeta.name,true);$('incoming').textContent='Concluído: '+incomingMeta.name+' — confira seus downloads.';incomingMeta=null;$('bar').style.width='100%';return}if(data instanceof ArrayBuffer||data instanceof Blob){chunks.push(data);received+=data.byteLength||data.size;$('bar').style.width=(total?Math.min(100,received/total*100):0)+'%';}})}
+</script></body></html>
